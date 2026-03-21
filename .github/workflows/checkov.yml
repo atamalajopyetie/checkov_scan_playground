@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run Checkov Scan
         uses: bridgecrewio/checkov-action@master
@@ -23,7 +23,7 @@ jobs:
           soft_fail: true          # ← Won't fail the pipeline, just reports
 
       - name: Upload Checkov Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: checkov-report
           path: reports/results.json
