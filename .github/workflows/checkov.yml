@@ -1,0 +1,29 @@
+name: Checkov IaC Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  checkov:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Checkov Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform/
+          framework: terraform
+          output_format: json
+          output_file_path: reports/results.json
+          soft_fail: true          # ← Won't fail the pipeline, just reports
+
+      - name: Upload Checkov Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: checkov-report
+          path: reports/results.json
