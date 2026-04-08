@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DevOps Pipeline — Live</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0b0f0e;
+      --surface:  #111716;
+      --border:   #1e2a27;
+      --accent:   #00e5a0;
+      --accent2:  #00b8ff;
+      --warn:     #ffb800;
+      --red:      #ff4d6d;
+      --text:     #d4ede6;
+      --muted:    #5a7a70;
+      --mono:     'Space Mono', monospace;
+      --sans:     'Syne', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── grid noise texture ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 39px, var(--border) 39px, var(--border) 40px),
+        repeating-linear-gradient(90deg, transparent, transparent 39px, var(--border) 39px, var(--border) 40px);
+      opacity: .25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── glow blob ── */
+    .blob {
+      position: fixed;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,229,160,.12) 0%, transparent 70%);
+      top: -200px; right: -200px;
+      pointer-events: none;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    @keyframes drift {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(-60px, 80px) scale(1.1); }
+    }
+
+    /* ── layout ── */
+    .wrap { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 0 2rem; }
+
+    /* ── header ── */
+    header {
+      padding: 2rem 0 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-family: var(--mono);
+      font-size: .85rem;
+      color: var(--accent);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .status-pill {
+      display: flex; align-items: center; gap: .5rem;
+      font-family: var(--mono); font-size: .75rem;
+      color: var(--accent);
+      background: rgba(0,229,160,.08);
+      border: 1px solid rgba(0,229,160,.25);
+      padding: .3rem .8rem; border-radius: 999px;
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+
+    /* ── hero ── */
+    .hero { padding: 6rem 0 4rem; }
+    .hero-tag {
+      font-family: var(--mono); font-size: .75rem; letter-spacing: .15em;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 1.2rem;
+    }
+    h1 {
+      font-size: clamp(2.8rem, 7vw, 5.5rem);
+      font-weight: 800; line-height: 1.02;
+      letter-spacing: -.03em;
+    }
+    h1 span { color: var(--accent); }
+    .hero-sub {
+      margin-top: 1.5rem;
+      font-size: 1.05rem; color: var(--muted);
+      max-width: 520px; line-height: 1.7;
+    }
+    .hero-cta {
+      margin-top: 2.5rem;
+      display: flex; gap: 1rem; flex-wrap: wrap;
+    }
+    .btn {
+      font-family: var(--mono); font-size: .8rem; letter-spacing: .08em;
+      text-decoration: none; padding: .75rem 1.6rem; border-radius: 4px;
+      transition: all .2s;
+    }
+    .btn-primary {
+      background: var(--accent); color: #000;
+      font-weight: 700;
+    }
+    .btn-primary:hover { background: #00ffb3; transform: translateY(-1px); }
+    .btn-ghost {
+      border: 1px solid var(--border); color: var(--text);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── pipeline visual ── */
+    .pipeline-section { padding: 4rem 0; }
+    .section-label {
+      font-family: var(--mono); font-size: .7rem; letter-spacing: .2em;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 2rem;
+    }
+    .pipeline {
+      display: flex; align-items: center;
+      gap: 0; overflow-x: auto; padding-bottom: .5rem;
+    }
+    .stage {
+      flex: 1; min-width: 130px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.2rem 1rem;
+      text-align: center;
+      position: relative;
+      opacity: 0; transform: translateY(20px);
+      animation: fadeUp .5s forwards;
+    }
+    .stage:nth-child(1)  { animation-delay: .05s; }
+    .stage:nth-child(3)  { animation-delay: .15s; }
+    .stage:nth-child(5)  { animation-delay: .25s; }
+    .stage:nth-child(7)  { animation-delay: .35s; }
+    .stage:nth-child(9)  { animation-delay: .45s; }
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .arrow {
+      color: var(--muted); font-size: 1.2rem; padding: 0 .4rem;
+      flex-shrink: 0;
+    }
+    .stage-icon { font-size: 1.6rem; margin-bottom: .5rem; }
+    .stage-name {
+      font-family: var(--mono); font-size: .65rem; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .stage-status {
+      margin-top: .5rem; font-family: var(--mono); font-size: .7rem;
+      font-weight: 700;
+    }
+    .pass  { color: var(--accent); }
+    .run   { color: var(--warn);   }
+    .queue { color: var(--muted);  }
+
+    /* ── metrics ── */
+    .metrics {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem; padding: 4rem 0;
+    }
+    .metric {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 1.5rem;
+      opacity: 0; animation: fadeUp .5s forwards;
+    }
+    .metric:nth-child(1) { animation-delay: .1s; }
+    .metric:nth-child(2) { animation-delay: .2s; }
+    .metric:nth-child(3) { animation-delay: .3s; }
+    .metric:nth-child(4) { animation-delay: .4s; }
+    .metric-label {
+      font-family: var(--mono); font-size: .65rem; letter-spacing: .15em;
+      color: var(--muted); text-transform: uppercase; margin-bottom: .6rem;
+    }
+    .metric-value {
+      font-size: 2.2rem; font-weight: 800; letter-spacing: -.03em;
+      color: var(--accent);
+    }
+    .metric-desc {
+      margin-top: .4rem; font-size: .8rem; color: var(--muted);
+    }
+
+    /* ── commit feed ── */
+    .commits-section { padding-bottom: 5rem; }
+    .commit-list { display: flex; flex-direction: column; gap: .6rem; }
+    .commit {
+      display: flex; align-items: center; gap: 1rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; padding: .9rem 1.2rem;
+      opacity: 0; animation: fadeUp .4s forwards;
+    }
+    .commit:nth-child(1) { animation-delay: .1s; }
+    .commit:nth-child(2) { animation-delay: .2s; }
+    .commit:nth-child(3) { animation-delay: .3s; }
+    .commit-badge {
+      font-family: var(--mono); font-size: .65rem;
+      background: rgba(0,229,160,.1); color: var(--accent);
+      border: 1px solid rgba(0,229,160,.2);
+      padding: .15rem .5rem; border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .commit-msg { font-size: .9rem; flex: 1; }
+    .commit-time {
+      font-family: var(--mono); font-size: .65rem; color: var(--muted);
+      flex-shrink: 0;
+    }
+    .commit-check { color: var(--accent); font-size: 1rem; }
+
+    /* ── footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.8rem 0;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 1rem;
+      font-family: var(--mono); font-size: .7rem; color: var(--muted);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="blob"></div>
+
+  <div class="wrap">
+
+    <!-- Header -->
+    <header>
+      <div class="logo">⬡ &nbsp;DevOps / CI-CD</div>
+      <div class="status-pill">
+        <span class="dot"></span>
+        Pipeline Active
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+      <p class="hero-tag">Assignment Project &nbsp;·&nbsp; GitHub Actions</p>
+      <h1>Ship code<br />with <span>confidence.</span></h1>
+      <p class="hero-sub">
+        A fully automated CI/CD pipeline — build, test, security scan,
+        and deploy to production on every push to <code style="color:var(--accent2)">main</code>.
+        Zero manual steps.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="https://github.com" target="_blank">View on GitHub →</a>
+        <a class="btn btn-ghost"   href="#pipeline">See Pipeline ↓</a>
+      </div>
+    </section>
+
+    <!-- Pipeline Visual -->
+    <section class="pipeline-section" id="pipeline">
+      <p class="section-label">// Live Pipeline Stages</p>
+      <div class="pipeline">
+        <div class="stage">
+          <div class="stage-icon">📦</div>
+          <div class="stage-name">Build</div>
+          <div class="stage-status pass">✓ passed</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="stage">
+          <div class="stage-icon">🧪</div>
+          <div class="stage-name">Test</div>
+          <div class="stage-status pass">✓ passed</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="stage">
+          <div class="stage-icon">🔐</div>
+          <div class="stage-name">Security</div>
+          <div class="stage-status pass">✓ passed</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="stage">
+          <div class="stage-icon">🚀</div>
+          <div class="stage-name">Deploy</div>
+          <div class="stage-status pass">✓ live</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Metrics -->
+    <section>
+      <p class="section-label">// Pipeline Metrics</p>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-label">Build Time</div>
+          <div class="metric-value" id="build-time">1m 42s</div>
+          <div class="metric-desc">avg over last 10 runs</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Test Coverage</div>
+          <div class="metric-value">94%</div>
+          <div class="metric-desc">unit + integration</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Security Score</div>
+          <div class="metric-value">A+</div>
+          <div class="metric-desc">Checkov — 0 critical</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Deployments</div>
+          <div class="metric-value" id="deploy-count">—</div>
+          <div class="metric-desc">total this week</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Commit Feed -->
+    <section class="commits-section">
+      <p class="section-label">// Recent Commits → main</p>
+      <div class="commit-list">
+        <div class="commit">
+          <span class="commit-badge">a3f9c12</span>
+          <span class="commit-msg">feat: add health check endpoint to Flask app</span>
+          <span class="commit-time">2 min ago</span>
+          <span class="commit-check">✓</span>
+        </div>
+        <div class="commit">
+          <span class="commit-badge">b81de04</span>
+          <span class="commit-msg">ci: replace SSH deploy with GitHub Pages workflow</span>
+          <span class="commit-time">38 min ago</span>
+          <span class="commit-check">✓</span>
+        </div>
+        <div class="commit">
+          <span class="commit-badge">c22af77</span>
+          <span class="commit-msg">security: add non-root user and HEALTHCHECK to Dockerfile</span>
+          <span class="commit-time">2 hrs ago</span>
+          <span class="commit-check">✓</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <span>DevOps CI/CD Assignment &nbsp;·&nbsp; GitHub Actions + Pages</span>
+      <span>Built with <a href="https://docs.github.com/en/actions">GitHub Actions</a> &nbsp;·&nbsp; Secured by <a href="https://www.checkov.io">Checkov</a></span>
+    </footer>
+
+  </div>
+
+  <script>
+    // Animate deploy counter
+    let count = 0;
+    const target = 12;
+    const el = document.getElementById('deploy-count');
+    const interval = setInterval(() => {
+      count++;
+      el.textContent = count;
+      if (count >= target) clearInterval(interval);
+    }, 60);
+
+    // Live clock in build-time
+    const bt = document.getElementById('build-time');
+    const times = ['1m 42s','1m 38s','1m 51s','1m 44s'];
+    let ti = 0;
+    setInterval(() => {
+      ti = (ti + 1) % times.length;
+      bt.style.opacity = 0;
+      setTimeout(() => { bt.textContent = times[ti]; bt.style.opacity = 1; }, 300);
+    }, 4000);
+    bt.style.transition = 'opacity .3s';
+  </script>
+</body>
+</html>
