@@ -1,4 +1,4 @@
-name: Checkov IaC Scan
+name: DevOps CI/CD Pipeline
 
 on:
   push:
@@ -6,13 +6,24 @@ on:
   pull_request:
 
 jobs:
-  checkov:
+  pipeline:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Build Stage
+      - name: Install dependencies
+        run: |
+          echo "Installing dependencies..."
+
+      # Test Stage
+      - name: Run tests
+        run: |
+          echo "Running tests..."
+
+      # Security Scan (Your current part)
       - name: Run Checkov Scan
         uses: bridgecrewio/checkov-action@master
         with:
@@ -20,10 +31,16 @@ jobs:
           framework: terraform
           output_format: json
           output_file_path: reports/results.json
-          soft_fail: true          # ← Won't fail the pipeline, just reports
+          soft_fail: true
 
+      # Artifact
       - name: Upload Checkov Report
         uses: actions/upload-artifact@v4
         with:
           name: checkov-report
           path: reports/results.json
+
+      # Deployment Stage
+      - name: Deploy Application
+        run: |
+          echo "Deploying application..."
