@@ -4,43 +4,187 @@ on:
   push:
     branches: [ main ]
   pull_request:
+    branches: [ main ]
+
+# Required for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deployment runs at a time
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.11"
 
 jobs:
-  pipeline:
+
+  # ──────────────────────────────────────────────
+  # STAGE 1 — BUILD
+  # ──────────────────────────────────────────────
+  build:
+    name: Build & Install Dependencies
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Build Stage
-      - name: Install dependencies
-        run: |
-          echo "Installing dependencies..."
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
 
-      # Test Stage
-      - name: Run tests
+      - name: Install Dependencies
         run: |
-          echo "Running tests..."
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      # Security Scan (Your current part)
-      - name: Run Checkov Scan
+      - name: Upload Site as Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: website
+          path: website/
+          retention-days: 1
+
+  # ──────────────────────────────────────────────
+  # STAGE 2 — TEST
+  # ──────────────────────────────────────────────
+  test:
+    name: Automated Tests
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint with Flake8
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run Unit Tests with Coverage
+        run: |
+          pytest tests/ \
+            --cov=app \
+            --cov-report=xml:reports/coverage.xml \
+            --cov-report=html:reports/htmlcov \
+            --junitxml=reports/test-results.xml \
+            -v
+
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: reports/
+
+  # ──────────────────────────────────────────────
+  # STAGE 3 — SECURITY SCAN
+  # ──────────────────────────────────────────────
+  security:
+    name: Security & Compliance Scan
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create Reports Directory
+        run: mkdir -p reports
+
+      - name: Run Checkov IaC Scan (Terraform)
         uses: bridgecrewio/checkov-action@master
         with:
           directory: terraform/
           framework: terraform
           output_format: json
-          output_file_path: reports/results.json
+          output_file_path: reports/checkov-results.json
           soft_fail: true
 
-      # Artifact
-      - name: Upload Checkov Report
+      - name: Run Checkov Dockerfile Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: dockerfile
+          output_format: json
+          output_file_path: reports/checkov-docker.json
+          soft_fail: true
+
+      - name: Dependency Vulnerability Scan
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt --format json \
+            --output reports/pip-audit.json || true
+
+      - name: Upload Security Reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: checkov-report
-          path: reports/results.json
+          name: security-reports
+          path: reports/
 
-      # Deployment Stage
-      - name: Deploy Application
+      - name: Print Checkov Summary
+        if: always()
         run: |
-          echo "Deploying application..."
+          echo "====== Checkov Terraform Summary ======"
+          python3 -c "
+          import json
+          try:
+            with open('reports/checkov-results.json') as f:
+              data = json.load(f)
+            s = data.get('summary', {})
+            print(f'Passed : {s.get(\"passed\", 0)}')
+            print(f'Failed : {s.get(\"failed\", 0)}')
+            print(f'Skipped: {s.get(\"skipped\", 0)}')
+          except Exception as e:
+            print(f'Could not parse report: {e}')
+          "
+
+  # ──────────────────────────────────────────────
+  # STAGE 4 — DEPLOY TO GITHUB PAGES
+  # (only runs on push to main, after test + security pass)
+  # ──────────────────────────────────────────────
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: [ test, security ]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/            # serves everything inside /website
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Print Live URL
+        run: |
+          echo "::notice title=Deployed!::Site is live at ${{ steps.deployment.outputs.page_url }}"
