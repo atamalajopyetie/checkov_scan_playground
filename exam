@@ -1,0 +1,201 @@
+------1st--------
+clear;
+clear all;
+
+img1 = imread("img1.jpg");
+img2 = imread("img2.jpg");
+
+img1 = imresize(img1, [256, 256]);
+img2 = imresize(img2, [256, 256]);
+
+img1_gray = rgb2gray(img1);
+img2_gray = rgb2gray(img2);
+figure('Name','Arithemetic OPs')
+subplot(4,4,1); imshow(img1_gray); title('img1 gray');
+subplot(4,4,2); imshow(img2_gray); title('img2 gray');
+
+
+A = im2double(img1_gray);
+B = im2double(img2_gray);
+
+add_img = imadd(img1_gray,img2_gray);
+sub_img = imsubtract(img1_gray,img2_gray);
+mul_img = immultiply(A,B);
+div_img = imdivide(A,B);
+
+com_img = imcomplement(img1_gray);
+or_img = bitor(img1_gray,img2_gray);
+and_img = bitand(img1_gray,img2_gray);
+xor_img = bitxor(img1_gray,img2_gray);
+
+subplot(4,4,3); imshow(add_img); title('add');
+subplot(4,4,4); imshow(sub_img); title('sub');
+subplot(4,4,5); imshow(mul_img); title('mul');
+subplot(4,4,6); imshow(div_img); title('div');
+subplot(4,4,8); imshow(com_img); title('complement');
+subplot(4,4,9); imshow(or_img); title('or');
+subplot(4,4,10); imshow(and_img); title('and');
+subplot(4,4,11); imshow(xor_img); title('xor');
+
+-----2nd-----
+clear all;
+img = imread("img1.jpg");
+img = rgb2gray(img);
+
+avg_gaussian_kernel = fspecial('gaussian', [5,5], 1.0);
+
+lpf = imfilter(img, avg_gaussian_kernel);
+
+filter_hpf = fspecial("laplacian",0.2);
+hpf = imfilter(img, filter_hpf);
+
+sobel = edge(img, 'sobel');
+prewitt = edge(img, 'prewitt');
+canny = edge(img, 'canny');
+
+figure ('Name', 'HPF&LPF')
+subplot(2,3,1); imshow(img);              title('Original Gray');
+subplot(2,3,2); imshow(lpf);              title('LPF (Gaussian)');
+subplot(2,3,3); imshow(mat2gray(hpf));    title('HPF (Laplacian)');
+subplot(2,3,4); imshow(sobel);        title('Sobel');
+subplot(2,3,5); imshow(prewitt);      title('Prewitt');
+subplot(2,3,6); imshow(canny);        title('Canny');
+
+-----3rd----
+clear all;
+
+img = imread('img1.jpg');
+img_i = rgb2gray(img);
+
+threshold = graythresh(img);
+
+threshold = threshold*255;
+
+disp(['global Threshold:', num2str(threshold)]);
+
+binaryImg = imbinarize(img_i,threshold/255);
+
+figure('Name', 'thresholding')
+subplot(4,4,1); imshow(img); title('og img');
+subplot(4,4,2); imshow(img_i); title('og grayimg');
+subplot(4,4,3); imshow(binaryImg); title('thresimg');
+
+----4th----
+clear all;
+
+img = imread("img1.jpg");
+
+gray = rgb2gray(img);
+
+sobel = edge(gray,"sobel");
+prewitt = edge(gray,"prewitt");
+canny = edge(gray,"canny");
+robert = edge(gray, "roberts");
+zerocross = edge(gray,"zerocross");
+
+figure('Name','edge Detection')
+subplot(2,3,1), imshow(sobel), title('Sobel Edge Detection');
+subplot(2,3,2), imshow(prewitt), title('Prewitt Edge Detection');
+subplot(2,3,3), imshow(canny), title('Canny Edge Detection');
+subplot(2,3,4), imshow(robert), title('Roberts Edge Detection');
+subplot(2,3,5), imshow(zerocross), title('Zero Crossing Edge Detection');
+
+----5th-----
+clear all;
+
+img = imread("img1.jpg");
+img = rgb2gray(img);
+binary = imbinarize(img);
+
+se = strel('line',10, 10);
+
+dilated = imdilate(binary, se);
+erode = imerode(binary,se);
+
+custom_str = strel([0 1 0; 1 1 1; 0 1 0]);
+dil_cust = imdilate(binary,custom_str);
+erode_cust = imerode(binary,custom_str);
+
+figure('Name','Morph');
+subplot(2,3,1), imshow(binary), title('Binary Image');
+subplot(2,3,2), imshow(dilated), title('Dilated Image');
+subplot(2,3,3), imshow(erode), title('Eroded Image');
+subplot(2,3,4), imshow(dil_cust), title('Custom Dilated Image');
+subplot(2,3,5), imshow(erode_cust), title('Custom Eroded Image');
+
+
+----6th-----
+% Load and convert
+i = imread('image.jpg');
+i = rgb2gray(i);
+
+% Equalize
+equalizedimage = histeq(i);
+
+% Display images and histograms
+figure;
+subplot(2,2,1); imshow(i);              title('Original Image');
+subplot(2,2,2); imhist(i);             title('Original Histogram');
+subplot(2,2,3); imshow(equalizedimage); title('Equalized Image');
+subplot(2,2,4); imhist(equalizedimage); title('Equalized Histogram');
+
+----7th-----
+Gray = rgb2gray(imread('image.jpg'));
+
+%--- GLCM ---
+glcm  = graycomatrix(Gray, 'Offset', [0 1; -1 1; -1 0; -1 -1]);
+stats = graycoprops(glcm, {'contrast','correlation','energy','homogeneity'});
+% Access: stats.Contrast, stats.Energy, etc.
+
+%--- LBP (built-in) ---
+lbpFeatures = extractLBPFeatures(Gray);
+% Returns a 1D feature vector (59 elements for default uniform mapping)
+
+%--- LBP (manual) ---
+[rows, cols] = size(Gray);
+lbpImage = zeros(rows, cols);
+for i = 2:rows-1
+    for j = 2:cols-1
+        center = Gray(i,j);
+        neighbors = [Gray(i-1,j-1), Gray(i-1,j), Gray(i-1,j+1), ...
+                     Gray(i,j+1), Gray(i+1,j+1), Gray(i+1,j), ...
+                     Gray(i+1,j-1), Gray(i,j-1)];
+        bits = neighbors >= center;
+        lbpImage(i,j) = sum(bits .* [128,64,32,16,8,4,2,1]);
+    end
+end
+
+%--- Gabor ---
+wavelength  = 4;
+orientations = [0, 45, 90, 135];
+gaborArray  = gabor(wavelength, orientations);
+gaborMag    = imgaborfilt(Gray, gaborArray);
+% gaborMag is a 3D array — one layer per filter
+
+
+----8th-----
+img = imread('img1.jpg');
+info_orig = dir('img1.jpg');
+og_img_size = info_orig.bytes;
+
+imwrite(img,'compressed.jpg', 'jpg', 'Quality', 50);
+imwrite(img, 'compressed.png', 'png');
+imwrite(img, 'compressed.jp2', 'jp2');
+
+info_jpg = dir('compressed.jpg');
+info_png = dir('compressed.png');
+info_jp2 = dir('compressed.jp2');
+
+jpgratio = og_img_size / info_jpg.bytes;
+pngratio = og_img_size / info_png.bytes;
+jp2ratio = og_img_size / info_jp2.bytes;
+
+fprintf("jpeg ratio %.2f\n",jpgratio);
+fprintf("png ratio %.2f\n", pngratio);
+fprintf("jp2 ratio %.2f\n", jp2ratio);
+
+figure;
+subplot(1,4,1); imshow(img); title('og image');
+subplot(1,4,2); imshow(imread('compressed.jpg')); title('jpeg');
+subplot(1,4,3); imshow(imread('compressed.png')); title('png');
+subplot(1,4,4); imshow(imread('compressed.jp2')); title('jp2');
